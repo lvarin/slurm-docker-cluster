@@ -40,9 +40,11 @@ docker build --build-arg SLURM_TAG="slurm-19-05-2-1" -t slurm-docker-cluster:19.
 > Note: You will need to update the container image version in
 > [docker-compose.yml](docker-compose.yml).
 
+You may use the image pushed to dockerhub. You can use the one from the original author, [giovtorres/slurm-docker-cluster](https://hub.docker.com/r/giovtorres/slurm-docker-cluster). I also pushed an image, this is the one I will use here.
 
+## Single node mode
 
-## Starting the Cluster
+### Starting the Cluster
 
 Run `docker-compose` to instantiate the cluster:
 
@@ -50,7 +52,7 @@ Run `docker-compose` to instantiate the cluster:
 docker-compose up -d
 ```
 
-## Register the Cluster with SlurmDBD
+### Register the Cluster with SlurmDBD
 
 To register the cluster to the slurmdbd daemon, run the `register_cluster.sh`
 script:
@@ -66,7 +68,7 @@ script:
 > You can check the status of the cluster by viewing the logs: `docker-compose
 > logs -f`
 
-## Accessing the Cluster
+### Accessing the Cluster
 
 Use `docker exec` to run a bash shell on the controller container:
 
@@ -82,7 +84,7 @@ PARTITION AVAIL  TIMELIMIT  NODES  STATE NODELIST
 normal*      up 5-00:00:00      2   idle c[1-2]
 ```
 
-## Submitting Jobs
+### Submitting Jobs
 
 The `slurm_jobdir` named volume is mounted on each Slurm container as `/data`.
 Therefore, in order to see job output files while on the controller, change to
@@ -96,14 +98,14 @@ Submitted batch job 2
 slurm-2.out
 ```
 
-## Stopping and Restarting the Cluster
+### Stopping and Restarting the Cluster
 
 ```console
 docker-compose stop
 docker-compose start
 ```
 
-## Deleting the Cluster
+### Deleting the Cluster
 
 To remove all containers and volumes, run:
 
@@ -111,4 +113,66 @@ To remove all containers and volumes, run:
 docker-compose stop
 docker-compose rm -f
 docker volume rm slurm-docker-cluster_etc_munge slurm-docker-cluster_etc_slurm slurm-docker-cluster_slurm_jobdir slurm-docker-cluster_var_lib_mysql slurm-docker-cluster_var_log_slurm
+```
+
+## Swarm mode
+
+### Starting the cluster
+
+In order to set up Swarm, first a manager node has to be initialized:
+
+```console
+sudo docker swarm init
+```
+
+This will give you the command to add workers, something like:
+
+```console
+   docker swarm join \
+    --token XXXXXX-X-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX-XXXXXXXXXXXXXXXXXXXXXXXXX \
+    192.168.1.6:2377
+```
+
+Run this in every worker you want to join the swarm. Afterwards, run `docker swarm deploy` in the manager node:
+
+```console
+docker stack deploy --compose-file docker-compose.yml stackdemo
+```
+
+### Register the Cluster with SlurmDBD
+
+Run the following:
+
+```console
+ID=$(docker service ps stackdemo_slurmctld -q --no-trunc)
+docker exec stackdemo_slurmctld.1.${ID} bash -c "/usr/bin/sacctmgr --immediate add cluster name=linux" && \
+#docker-compose restart slurmdbd slurmctld
+```
+Where:
+* *stackdemo* is the name of the stack
+* *1* is the replica number
+
+### Accessing the Cluster
+
+```console
+ID=$(docker service ps stackdemo_slurmctld -q --no-trunc)
+docker exec -it stackdemo_slurmctld.1.${ID} bash
+```
+
+Same `slurm` commands should work as with a single node: 
+
+```console
+[root@slurmctld /]# sinfo
+PARTITION AVAIL  TIMELIMIT  NODES  STATE NODELIST
+normal*      up 5-00:00:00      2   idle c[1-2]
+```
+
+### Submitting Jobs
+
+See single node "Submitting Jobs"
+
+### Deleting the Cluster
+
+```console
+docker stack rm stackdemo
 ```
