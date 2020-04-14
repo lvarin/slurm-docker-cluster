@@ -136,27 +136,30 @@ This will give you the command to add workers, something like:
 Run this in every worker you want to join the swarm. Afterwards, run `docker swarm deploy` in the manager node:
 
 ```console
-docker stack deploy --compose-file docker-compose.yml stackdemo
+docker stack deploy --compose-file docker-compose.yml slurm
 ```
 
 ### Register the Cluster with SlurmDBD
 
-Run the following:
+Run the following from the master node:
 
 ```console
-ID=$(docker service ps stackdemo_slurmctld -q --no-trunc)
-docker exec stackdemo_slurmctld.1.${ID} bash -c "/usr/bin/sacctmgr --immediate add cluster name=linux" && \
-#docker-compose restart slurmdbd slurmctld
+CID=$(docker service ps slurm_slurmctld -q --no-trunc)
+# This step must be run from the node that runs the container
+docker exec slurm_slurmctld.1.${CID} bash -c "/usr/bin/sacctmgr --immediate add cluster name=linux" && \
+docker stack deploy --compose-file docker-compose.yml slurm
 ```
+
 Where:
-* *stackdemo* is the name of the stack
+* *slurm* is the name of the stack
 * *1* is the replica number
 
 ### Accessing the Cluster
 
 ```console
-ID=$(docker service ps stackdemo_slurmctld -q --no-trunc)
-docker exec -it stackdemo_slurmctld.1.${ID} bash
+CID=$(docker service ps slurm_slurmctld -q --no-trunc)
+# SAme as before, the exec only works from the node that runs the container
+docker exec -it slurm_slurmctld.1.${CID} bash
 ```
 
 Same `slurm` commands should work as with a single node: 
@@ -174,5 +177,5 @@ See single node "Submitting Jobs"
 ### Deleting the Cluster
 
 ```console
-docker stack rm stackdemo
+docker stack rm slurm
 ```
