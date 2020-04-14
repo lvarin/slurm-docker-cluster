@@ -125,7 +125,7 @@ In order to set up Swarm, first a manager node has to be initialized:
 sudo docker swarm init
 ```
 
-This will give you the command to add workers, something like:
+This will give you the command to add workers (you can get this command again by doing `docker swarm join-token worker`), something like:
 
 ```console
    docker swarm join \
@@ -138,6 +138,9 @@ Run this in every worker you want to join the swarm. Afterwards, run `docker swa
 ```console
 docker stack deploy --compose-file docker-compose.yml slurm
 ```
+
+`deploy` is also used to update the cluster.
+
 
 ### Register the Cluster with SlurmDBD
 
